@@ -1,0 +1,18 @@
+emb_dir: /mnt/data2/zhepei/outputs/microsoft_clap_official
+
+aud_emb_path: !ref <emb_dir>/us8k_audioset_a2a_embeddings.npy
+
+txt_emb_path: !ref <emb_dir>/us8k_insper_t2t_embeddings.npy
+
+aud_ds_path: !ref <emb_dir>/us8k_audioset_a2a_files.txt
+
+txt_ds_path: !ref <emb_dir>/us8k_insper_t2t_ds.csv
+
+output_path: !ref <emb_dir>/us8k_insper_audioset_ds_curation.csv
+
+text_dataset: !new:dataset.curation_dataset.InsperCaptionDataset
+  df_path: !ref <txt_ds_path>
+
+audio_dataset: !new:dataset.curation_dataset.AudioSetEmbeddingDataset
+  pathfile: !ref <aud_ds_path>
+  embfile: !ref <aud_emb_path>

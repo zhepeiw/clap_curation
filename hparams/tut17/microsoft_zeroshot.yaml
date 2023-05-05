@@ -1,0 +1,155 @@
+# File              : zeroshot.yaml
+# Author            : Zhepei Wang <zhepeiw2@illinois.edu>
+# Date              : 27.01.2022
+# Last Modified Date: 01.12.2022
+# Last Modified By  : Zhepei Wang <zhepeiw2@illinois.edu>
+
+
+seed: 2022
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+np_rng: !new:numpy.random.RandomState [!ref <seed>]
+
+
+time_stamp: placeholder
+experiment_name: linclf
+output_base: /mnt/data2/zhepei/outputs/uclap/mm_zs
+output_folder: !ref <output_base>/<time_stamp>_seed_<seed>+<experiment_name>
+train_log: !ref <output_folder>/train_log.txt
+save_folder: !ref <output_folder>/save
+
+
+# Training parameters
+number_of_epochs: 100
+batch_size: 32
+warmup_epochs: 0
+warmup_lr: !ref <batch_size> * 0 / 256
+base_lr: !ref <batch_size> * 0.03 / 256
+final_lr: !ref <batch_size> * 0.00000001 / 256
+temp_tau: 0.07
+text_max_length: 100
+text_prompt: "this is a sound of "
+
+# dataset
+sample_rate: 44100
+duration: 5.0
+
+
+data_folder: "/mnt/data2/Sound Sets/TUT-acoustic-scenes-2017"
+label_encoder_path: "./dataset/label_encoder_tut2017_ordered.txt"
+prepare_split_csv_fn: !name:dataset.prepare_tut.prepare_tut2017_full_csv
+# prepare_split_csv_fn: !name:dataset.prepare_tut.prepare_tut2017_dev_eval_csv
+  root_dir: !ref <data_folder>
+  output_dir: !ref <save_folder>
+
+train_dataloader_opts:
+  batch_size: !ref <batch_size>
+  num_workers: 8
+  shuffle: True
+  drop_last: True
+
+valid_dataloader_opts:
+  batch_size: !ref <batch_size>
+  num_workers: 8
+
+
+# Experiment params
+use_maxacc_ep: True
+use_minloss_ep: False
+auto_mix_prec: False # Set it to True for mixed precision
+
+
+# # Feature parameters
+# n_mels: 80
+# left_frames: 0
+# right_frames: 0
+# deltas: False
+# amp_to_db: False
+# normalize: True
+# win_length: 25
+# hop_length: 10
+# n_fft: !ref <win_length> * <sample_rate> // 1000
+# f_min: 0
+
+# original pann
+window_size: 1024
+hop_size: 320
+mel_bins: 64
+fmin: 50
+fmax: 14000
+aud_emb_classes_num: 527
+# Number of classes
+n_classes: 15
+emb_norm_type: bn
+aud_emb_dim: 2048
+txt_emb_dim: 768
+shared_emb_dim: 1024
+
+# Functions
+clap: !new:models.microsoft_clap.CLAP
+    audioenc_name: Cnn14
+    sample_rate: !ref <sample_rate>
+    window_size: !ref <window_size>
+    hop_size: !ref <hop_size>
+    mel_bins: !ref <mel_bins>
+    fmin: !ref <fmin>
+    fmax: !ref <fmax>
+    classes_num: !ref <aud_emb_classes_num>
+    out_emb: !ref <aud_emb_dim>
+    text_model: bert-base-uncased
+    transformer_embed_dim: !ref <txt_emb_dim>
+    d_proj: !ref <shared_emb_dim>
+
+txt_tokenizer: !apply:transformers.AutoTokenizer.from_pretrained
+    pretrained_model_name_or_path: bert-base-uncased
+
+modules:
+    clap: !ref <clap>
+
+
+compute_cost: !new:losses.LogSoftmaxWithProbWrapper
+    loss_fn: !new:torch.nn.Identity
+
+acc_metric: !name:speechbrain.utils.Accuracy.AccuracyStats
+
+opt_class: null
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+datapoint_counter: !new:utils.DatapointCounter
+
+# Logging + checkpoints
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+
+recoverables:
+    datapoint_counter: !ref <datapoint_counter>
+
+prev_checkpointer: null
+# prev_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+#     checkpoints_dir: !PLACEHOLDER
+
+clap_ckpt_path: '/mnt/data2/zhepei/model_weights/CLAP/CLAP_weights_2022.pth'
+ssl_checkpoints_dir: "/mnt/data2/zhepei/outputs/clap/2022-11-30+06-18-10_seed_2022+clap_audiocaps/save"
+# ssl_checkpointer: null
+ssl_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <ssl_checkpoints_dir>
+    recoverables:
+      clap: !ref <clap>
+      epoch_counter: !ref <epoch_counter>
+
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+# wandb
+use_wandb: False
+train_log_frequency: 20
+wandb_logger_fn: !name:utils.MyWandBLogger
+    initializer: !name:wandb.init
+    entity: CAL
+    project: cssl_sound
+    name: !ref <time_stamp>+seed_<seed>+<experiment_name>
+    dir: !ref <output_folder>
+    reinit: True
+    yaml_config: hparams/tut17/microsoft_zeroshot.yaml
+    resume: False

@@ -1,0 +1,17 @@
+'beach' => 0
+'bus' => 1
+'cafe restaurant' => 2
+'car' => 3
+'city center' => 4
+'forest path' => 5
+'grocery store' => 6
+'home' => 7
+'library' => 8
+'metro station' => 9
+'office' => 10
+'park' => 11
+'residential area' => 12
+'train' => 13
+'tram' => 14
+================
+'starting_index' => 0

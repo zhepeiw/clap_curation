@@ -1,0 +1,17 @@
+emb_dir: /mnt/data2/zhepei/outputs/microsoft_clap_official
+
+aud_emb_path: !ref <emb_dir>/audio_audioset_embeddings.npy
+aud_ds_path: /home/zhepei/workspace/microsoft_clap/CLAP/unsupervised_curation/good_files_du.txt
+audio_bs: 4000
+audio_dataset: !new:dataset.curation_dataset.AudioSetEmbeddingDataset
+  pathfile: !ref <aud_ds_path>
+  embfile: !ref <aud_emb_path>
+
+txt_emb_path: !ref <emb_dir>/text_insper_embeddings.npy
+txt_ds_path: /home/zhepei/workspace/microsoft_clap/CLAP/unsupervised_curation/insper_train_dev.csv
+text_dataset: !new:dataset.curation_dataset.InsperCaptionDataset
+  df_path: !ref <txt_ds_path>
+
+output_path: !ref <emb_dir>/audioset_insper_duv2_curation.csv
+
+sim_threshold: 0.75

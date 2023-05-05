@@ -1,0 +1,65 @@
+sample_rate: 44100
+train_duration: 5.0
+
+label_encoder_path: "./dataset/label_encoder_tut2017_ordered.txt"
+
+# Training parameters
+audio_batch_size: 32
+text_batch_size: 32
+num_workers: 8
+text_max_length: 100
+text_prompt: "this is a sound of "
+sim_threshold: 0.675
+
+# target dataset
+emb_dir: /mnt/data2/zhepei/outputs/microsoft_clap_official
+target_root_dir: /mnt/data3/insper/
+target_csv_path: /home/zhepei/workspace/microsoft_clap/CLAP/unsupervised_curation/insper_train_dev.csv
+target_emb_path: !ref <emb_dir>/text_insper_embeddings.npy
+target_dataset: !new:dataset.curation_dataset.InsperCaptionDataset
+  df_path: !ref <target_csv_path>
+
+
+# Feature parameters
+window_size: 1024
+hop_size: 320
+mel_bins: 64
+fmin: 50
+fmax: 14000
+aud_emb_classes_num: 527
+
+aud_emb_dim: 2048
+txt_emb_dim: 768
+shared_emb_dim: 1024
+
+# Functions
+clap: !new:models.microsoft_clap.CLAP
+    audioenc_name: Cnn14
+    sample_rate: !ref <sample_rate>
+    window_size: !ref <window_size>
+    hop_size: !ref <hop_size>
+    mel_bins: !ref <mel_bins>
+    fmin: !ref <fmin>
+    fmax: !ref <fmax>
+    classes_num: !ref <aud_emb_classes_num>
+    out_emb: !ref <aud_emb_dim>
+    text_model: bert-base-uncased
+    transformer_embed_dim: !ref <txt_emb_dim>
+    d_proj: !ref <shared_emb_dim>
+
+txt_tokenizer: !apply:transformers.AutoTokenizer.from_pretrained
+    pretrained_model_name_or_path: bert-base-uncased
+
+output_emb_path: !ref <emb_dir>/tut_insper_t2t_embeddings.npy
+output_csv_path: !ref <emb_dir>/tut_insper_t2t_ds.csv
+
+clap_ckpt_path: '/mnt/data2/zhepei/model_weights/CLAP/CLAP_weights_2022.pth'
+use_maxacc_ep: True
+use_minloss_ep: False
+
+ssl_checkpoints_dir: null
+# ssl_checkpointer: null
+ssl_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <ssl_checkpoints_dir>
+    recoverables:
+      clap: !ref <clap>

@@ -1,0 +1,20 @@
+emb_dir: /mnt/data2/zhepei/outputs/microsoft_clap_official
+
+aud_emb_path: !ref <emb_dir>/audio_us8k_embeddings.npy
+
+txt_emb_path: !ref <emb_dir>/text_insper_embeddings.npy
+
+txt_ds_path: /home/zhepei/workspace/microsoft_clap/CLAP/unsupervised_curation/insper_train_dev.csv
+
+aud_data_folder: "/mnt/data2/Sound Sets/UrbanSound8K/UrbanSound8K"
+selected_folds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+output_path: !ref <emb_dir>/us8k_insper_curation.csv
+
+text_dataset: !new:dataset.curation_dataset.InsperCaptionDataset
+  df_path: !ref <txt_ds_path>
+
+audio_dataset: !new:dataset.curation_dataset.UrbanSoundEmbeddingDataset
+  root_dir: !ref <aud_data_folder>
+  selected_folds: !ref <selected_folds>
+  embfile: !ref <aud_emb_path>

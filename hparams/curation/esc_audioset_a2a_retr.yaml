@@ -1,0 +1,18 @@
+emb_dir: /mnt/data2/zhepei/outputs/microsoft_clap_official
+sim_threshold: 0.7
+
+source_emb_path: !ref <emb_dir>/audio_esc_embeddings.npy
+target_root_dir: "/mnt/data2/AudioSet/data/unbalanced_train"
+target_emb_path: !ref <emb_dir>/audio_audioset_embeddings.npy
+
+
+target_ds_path: /home/zhepei/workspace/microsoft_clap/CLAP/unsupervised_curation/good_files_du.txt
+
+
+target_dataset: !new:dataset.curation_dataset.AudioSetEmbeddingDataset
+  pathfile: !ref <target_ds_path>
+  embfile: !ref <target_emb_path>
+
+
+output_file_path: !ref <emb_dir>/esc_audioset_a2a_files.txt
+output_emb_path: !ref <emb_dir>/esc_audioset_a2a_embeddings.npy

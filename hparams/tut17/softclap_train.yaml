@@ -1,0 +1,255 @@
+# File              : clap_train.yaml
+# Author            : Zhepei Wang <zhepeiw2@illinois.edu>
+# Date              : 11.11.2022
+# Last Modified Date: 11.11.2022
+# Last Modified By  : Zhepei Wang <zhepeiw2@illinois.edu>
+
+
+seed: 2022
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+np_rng: !new:numpy.random.RandomState [!ref <seed>]
+
+
+time_stamp: placeholder
+experiment_name: name
+
+output_base: /mnt/data/zhepei/outputs/cssl_genrep/tau19
+output_folder: !ref <output_base>/<time_stamp>_seed_<seed>+<experiment_name>
+train_log: !ref <output_folder>/train_log.txt
+save_folder: !ref <output_folder>/save
+
+# dataset
+sample_rate: 44100
+train_duration: 5.0
+valid_pct: 0.17
+subset_pct: 1
+# annotated
+train_csv_path: null
+data_annot_folder: "/mnt/data3/insper"
+overfit_size: null
+prepare_annot_csv_fn: !name:dataset.prepare_insper.prepare_insper_multi_csv
+  source_dir: !ref <data_annot_folder>
+  output_dir: !ref <save_folder>
+  csv_paths:
+    - insper_fsd50k_dev_index_notag.tsv
+    - insper_audiocaps_train_index.tsv
+    - insper_clotho_index.tsv
+    - insper_macs_index_notag.tsv
+  prepare_fns:
+    - !name:dataset.prepare_curation.prepare_fsd50k_csv
+    - !name:dataset.prepare_curation.prepare_audiocaps_csv
+    - !name:dataset.prepare_curation.prepare_clotho_csv
+    - !name:dataset.prepare_curation.prepare_macs_csv
+  valid_pct: !ref <valid_pct>
+  subset_pct: !ref <subset_pct>
+  shuffle_text: False
+  overfit_size: !ref <overfit_size>
+dataio_annot_prep_fn: !name:dataset.prepare_insper.dataio_audiocaps_prep
+
+# optional zs dataset
+use_zs_loader: False
+eval_duration: 5.0
+data_zs_folder: "/mnt/data2/Sound Sets/TUT-acoustic-scenes-2017"
+zs_label_encoder_path: "./dataset/label_encoder_tut2017_ordered.txt"
+zs_text_prompt: "this is a sound of "
+prepare_zs_csv_fn: !name:dataset.prepare_tut.prepare_tut2017_full_csv
+# prepare_split_csv_fn: !name:dataset.prepare_tut.prepare_tut2017_dev_eval_csv
+  root_dir: !ref <data_zs_folder>
+  output_dir: !ref <save_folder>
+  output_split: 'valid'
+dataio_zs_prep_fn: !name:dataset.prepare_curation.zs_dataio_prep
+
+
+# curation
+curation_prob: 0.5
+# data_curation_folder: "/mnt/data2/AudioSet/data/unbalanced_train"
+curation_csv: "/mnt/data2/zhepei/outputs/microsoft_clap_official/audioset_insper_msclap_tiny.csv"
+# prepare_curation_csv_fn: !name:dataset.prepare_curation.prepare_misc_multi_csv
+#   output_dir: !ref <save_folder>
+#   prepare_fns:
+#     - !name:dataset.prepare_curation.prepare_curation_csv
+#       audio_dir: !ref <data_curation_folder>
+#       source_csv: !ref <curation_csv>
+#       output_dir: !ref <save_folder>
+#       output_csv: False
+#   valid_pct: 0
+#   overfit_size: !ref <overfit_size>
+dataio_curation_prep_fn: !name:dataset.prepare_curation.dataio_curation_prep
+
+num_ckpt_keep: 3
+num_epoch_save: 1
+
+auto_mix_prec: False
+    
+# Feature parameters
+# original pann
+window_size: 1024
+hop_size: 320
+mel_bins: 64
+fmin: 50
+fmax: 14000
+aud_emb_classes_num: 527
+
+
+# Number of classes
+emb_norm_type: bn
+aud_emb_dim: 2048
+txt_emb_dim: 768
+shared_emb_dim: 1024
+
+resume_interrupt: False
+
+# Training parameters
+number_of_epochs: 100
+batch_size: 32
+num_workers: 8
+warmup_epochs: 0
+warmup_lr: !ref <batch_size> * 0 / 1024
+base_lr: !ref <batch_size> * 0.001 / 1024
+final_lr: !ref <batch_size> * 0.00000001 / 1024
+# number_of_epochs: 40
+# batch_size: 32
+# warmup_epochs: 4
+# warmup_lr: 0
+# base_lr: 0.001
+# final_lr: 0.0000001
+temp_tau: 0.003
+text_max_length: 100
+freeze_txt_emb: False
+freeze_aud_emb: False
+global_contrastive: True
+
+
+train_dataloader_opts:
+  batch_size: !ref <batch_size>
+  num_workers: !ref <num_workers>
+  shuffle: True
+  drop_last: True
+
+valid_dataloader_opts:
+  batch_size: !ref <batch_size>
+  num_workers: !ref <num_workers>
+
+
+# Functions
+teacher_clap: !new:models.microsoft_clap.CLAP
+    audioenc_name: Cnn14
+    sample_rate: !ref <sample_rate>
+    window_size: !ref <window_size>
+    hop_size: !ref <hop_size>
+    mel_bins: !ref <mel_bins>
+    fmin: !ref <fmin>
+    fmax: !ref <fmax>
+    classes_num: !ref <aud_emb_classes_num>
+    out_emb: !ref <aud_emb_dim>
+    text_model: bert-base-uncased
+    transformer_embed_dim: !ref <txt_emb_dim>
+    d_proj: !ref <shared_emb_dim>
+
+clap: !new:models.microsoft_clap.CLAP
+    audioenc_name: Cnn14
+    sample_rate: !ref <sample_rate>
+    window_size: !ref <window_size>
+    hop_size: !ref <hop_size>
+    mel_bins: !ref <mel_bins>
+    fmin: !ref <fmin>
+    fmax: !ref <fmax>
+    classes_num: !ref <aud_emb_classes_num>
+    out_emb: !ref <aud_emb_dim>
+    text_model: bert-base-uncased
+    transformer_embed_dim: !ref <txt_emb_dim>
+    d_proj: !ref <shared_emb_dim>
+
+txt_tokenizer: !apply:transformers.AutoTokenizer.from_pretrained
+    pretrained_model_name_or_path: bert-base-uncased
+
+    
+
+modules:
+    teacher_clap: !ref <teacher_clap>
+    clap: !ref <clap>
+    # compute_features: !ref <compute_features>
+    # mean_var_norm: !ref <mean_var_norm>
+
+softclap_beta: 0.3
+compute_cross_sim_cost: !new:losses.SoftCLAPLoss
+  beta: !ref <softclap_beta>
+compute_zs_cost: !new:torch.nn.CrossEntropyLoss
+acc_metric: !name:speechbrain.utils.Accuracy.AccuracyStats
+
+# opt_class: !name:torch.optim.SGD
+#     lr: !ref <base_lr>
+#     weight_decay: 0.0005
+#     momentum: 0.9
+opt_class: !name:torch.optim.Adam
+    lr: !ref <base_lr>
+
+# lr_scheduler_fn: !name:schedulers.SimSiamCosineScheduler
+#     warmup_epochs: !ref <warmup_epochs>
+#     warmup_lr: !ref <warmup_lr>
+#     num_epochs: !ref <number_of_epochs>
+#     base_lr: !ref <base_lr>
+#     final_lr: !ref <final_lr>
+#     steps_per_epoch: 200
+#     constant_predictor_lr: True
+lr_scheduler_fn: !name:speechbrain.nnet.schedulers.ReduceLROnPlateau
+    lr_min: !ref <final_lr>
+    factor: 0.1
+    patience: 10
+    dont_halve_until_epoch: 10
+
+epoch_counter_fn: !name:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <number_of_epochs>
+
+datapoint_counter: !new:utils.DatapointCounter
+
+# Logging + checkpoints
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+
+recoverables:
+    clap: !ref <clap>
+    # normalizer: !ref <mean_var_norm>
+    datapoint_counter: !ref <datapoint_counter>
+
+prev_ckpt_dir: null
+# prev_checkpointer: null
+prev_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <prev_ckpt_dir>
+
+# aud_emb_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+#     checkpoints_dir: /mnt/data2/zhepei/outputs/cssl_sound/vgg_offline/2022-04-13+23-33-21_seed_2022+ssl_offline/save/task0
+#     recoverables:
+#         embedding_model: !ref <aud_emb_model>
+pann_ckpt_path: '/mnt/data2/zhepei/model_weights/pann/Cnn14_mAP=0.431.pth'
+clap_ckpt_path: '/mnt/data2/zhepei/model_weights/CLAP/CLAP_weights_2022.pth'
+use_maxacc_ep: False
+use_minloss_ep: False
+
+ssl_checkpoints_dir: null
+ssl_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <ssl_checkpoints_dir>
+    recoverables:
+      clap: !ref <clap>
+
+teacher_checkpoints_dir: !ref <ssl_checkpoints_dir>
+teacher_checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <teacher_checkpoints_dir>
+    recoverables:
+      clap: !ref <teacher_clap>
+
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
+
+# wandb
+use_wandb: False
+train_log_frequency: 20
+wandb_logger_fn: !name:utils.MyWandBLogger
+    initializer: !name:wandb.init
+    entity: CAL
+    project: msclap
+    name: !ref <time_stamp>+seed_<seed>+<experiment_name>
+    dir: !ref <output_folder>
+    reinit: True
+    yaml_config: hparams/tut17/softclap_train.yaml
+    resume: False

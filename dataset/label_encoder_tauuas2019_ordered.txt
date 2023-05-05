@@ -1,0 +1,12 @@
+'airport' => 0
+'bus' => 1
+'metro' => 2
+'metro station' => 3
+'park' => 4
+'public square' => 5
+'shopping mall' => 6
+'street pedestrian' => 7
+'street traffic' => 8
+'tram' => 9
+================
+'starting_index' => 0
